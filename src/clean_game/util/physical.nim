@@ -3,6 +3,8 @@ import
   sdl2,
   ./drawing
 
+export glm
+
 type Pos* = Vec2[float]
 
 type Rect* = Vec2[float]

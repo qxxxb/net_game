@@ -1,7 +1,6 @@
 import
   sdl2,
   tables,
-  glm,
   sets,
   ../../ecs,
   ../../ecs/registry,

@@ -1,5 +1,4 @@
 import
-  glm,
   ../component,
   ../../util / [physical, drawing]
 

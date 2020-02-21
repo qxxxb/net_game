@@ -1,6 +1,5 @@
 import
   unittest,
-  glm,
   clean_game/util / [physical, drawing],
   clean_game/ecs/component,
   clean_game/ecs/components / [visible, pos, shape]
@@ -8,7 +7,7 @@ import
 suite "Component":
   test "Get class":
     let visible = Visible(
-      kind: VisibleKind.Sprite,
+      kind: visible.Kind.Sprite,
       texPosRect: drawing.initPosRect(0, 0, 96, 96),
       destRect: drawing.initRect(96, 96)
     )
@@ -16,7 +15,7 @@ suite "Component":
     let pos = pos.Pos(data: vec2(20.0, 20.0))
 
     let shape = Shape(
-      kind: ShapeKind.Rect,
+      kind: shape.Kind.Rect,
       rect: vec2(96.0, 96.0)
     )
 

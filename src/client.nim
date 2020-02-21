@@ -3,13 +3,12 @@ import
   clean_game/client/input,
   clean_game/ecs,
   clean_game/ecs/registry,
-  clean_game/ecs/components / [visible, pos, shape],
+  clean_game/ecs/entities / [player],
   clean_game/ecs/systems / [renderer],
   sdl2,
   sdl2/image as sdl2_image,
   options,
-  os,
-  glm
+  os
 
 type Game = ref object
   reg: Registry
@@ -91,31 +90,8 @@ proc main() =
   defer: client.destroy()
 
   let reg = client.game.reg
-  let entity = reg.createEntity()
-  let texture = client.renderer.loadTexture("assets" / "skins" / "coala.png")
-
-  reg.assignComponent(
-    entity,
-    Visible(
-      kind: visible.Kind.Sprite,
-      tex: texture,
-      texPosRect: drawing.initPosRect(0, 0, 96, 96),
-      destRect: drawing.initRect(96, 96)
-    )
-  )
-
-  reg.assignComponent(
-    entity,
-    pos.Pos(data: vec2(20.0, 20.0))
-  )
-
-  reg.assignComponent(
-    entity,
-    Shape(
-      kind: shape.Kind.Rect,
-      rect: vec2(96.0, 96.0)
-    )
-  )
+  var player = newPlayer(client.game.reg, client.renderer)
+  player.spawn(reg)
 
   while Input.Quit notin client.inputs:
     client.update()
