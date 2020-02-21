@@ -9,4 +9,7 @@ bin           = @["server", "client"]
 
 # Dependencies
 
-requires "nim >= 0.20.0", "sdl2"
+requires "nim >= 0.20.0", "sdl2", "glm"
+
+task test, "Runs tests":
+  exec "nim c -r tests/tester"
