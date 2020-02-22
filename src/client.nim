@@ -1,15 +1,16 @@
 import
-  clean_game/util / [logging, exceptions, physical, drawing],
+  sdl2,
+  sdl2/image as sdl2_image,
+  options,
+  os,
+  times,
+  clean_game/util / [logging, exceptions, physical, drawing, ticks],
   clean_game/client/controls/sources/keyboard,
   clean_game/client/global,
   clean_game/ecs,
   clean_game/ecs/registry,
   clean_game/client/entities / [player],
-  clean_game/ecs/systems / [renderer],
-  sdl2,
-  sdl2/image as sdl2_image,
-  options,
-  os
+  clean_game/ecs/systems / [renderer]
 
 type Game = ref object
   reg: Registry
@@ -101,9 +102,20 @@ proc main() =
   player.spawn(reg)
 
   while Input.Quit notin client.inputs:
+    let tickStart = times.getTime()
     global.keyboard.updateKeys()
     client.update()
     global.keyboard.processKeys(client.inputs)
+    processInputs(client.inputs)
     client.render()
+
+    # Sleep until next tick needed
+    let elapsed = times.getTime() - tickStart
+    let sleepDuration = ticks.duration - elapsed
+    if (sleepDuration > DurationZero):
+      sleep(sleepDuration.inMilliseconds().int())
+    else:
+      warn "Tick ran for longer than `tickDuration`"
+      warn "`tickDuration - elapsed`: ", sleepDuration
 
 main()
