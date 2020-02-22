@@ -1,9 +1,10 @@
 import
   clean_game/util / [logging, exceptions, physical, drawing],
-  clean_game/client/input,
+  clean_game/client/controls/sources/keyboard,
+  clean_game/client/global,
   clean_game/ecs,
   clean_game/ecs/registry,
-  clean_game/ecs/entities / [player],
+  clean_game/client/entities / [player],
   clean_game/ecs/systems / [renderer],
   sdl2,
   sdl2/image as sdl2_image,
@@ -48,6 +49,13 @@ proc newClient(): Client =
 
   result.game = newGame()
 
+  global.keyboard = newKeyboard()
+  global.keyboard.addInput(
+    SDL_SCANCODE_Q,
+    keyboard.KeyState.Unheld,
+    Input.Quit
+  )
+
   discard result.renderer.setDrawColor(100, 100, 200, 255)
 
 proc destroy(client: Client) =
@@ -59,15 +67,14 @@ proc update(client: Client) =
   while pollEvent(event):
     case event.kind
     of QuitEvent:
+      # TODO
       client.inputs.incl(Input.Quit)
     of KeyDown:
-      let input = event.key.keysym.scancode.toInput()
-      if input.isSome():
-        client.inputs.incl(input.get())
+      let key = event.key.keysym.scancode
+      global.keyboard.onKeyDown(key)
     of KeyUp:
-      let input = event.key.keysym.scancode.toInput()
-      if input.isSome():
-        client.inputs.excl(input.get())
+      let key = event.key.keysym.scancode
+      global.keyboard.onKeyUp(key)
     else:
       discard
 
@@ -94,7 +101,9 @@ proc main() =
   player.spawn(reg)
 
   while Input.Quit notin client.inputs:
+    global.keyboard.updateKeys()
     client.update()
+    global.keyboard.processKeys(client.inputs)
     client.render()
 
 main()

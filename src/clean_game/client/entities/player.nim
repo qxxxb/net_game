@@ -2,9 +2,11 @@ import
   sdl2,
   sdl2/image as sdl2_image,
   os,
-  ../entity,
-  ../registry,
-  ../components / [visible, pos, shape],
+  ../../ecs/entity,
+  ../../ecs/registry,
+  ../../ecs/components / [visible, pos, shape],
+  ../controls/sources/keyboard,
+  ../global,
   ../../util / [physical, drawing]
 
 type Player* = ref object
@@ -42,4 +44,28 @@ proc spawn*(player: Player, reg: Registry) =
       kind: shape.Kind.Rect,
       rect: vec2(96.0, 96.0)
     )
+  )
+
+  global.keyboard.addInput(
+    SDL_SCANCODE_A,
+    keyboard.KeyState.Pressed,
+    Input.Left
+  )
+
+  global.keyboard.addInput(
+    SDL_SCANCODE_D,
+    keyboard.KeyState.Pressed,
+    Input.Right
+  )
+
+  global.keyboard.addInput(
+    SDL_SCANCODE_W,
+    keyboard.KeyState.Pressed,
+    Input.Up
+  )
+
+  global.keyboard.addInput(
+    SDL_SCANCODE_S,
+    keyboard.KeyState.Pressed,
+    Input.Down
   )
