@@ -10,7 +10,8 @@ import
   clean_game/ecs,
   clean_game/ecs/registry,
   clean_game/client/entities / [player],
-  clean_game/ecs/systems / [renderer]
+  clean_game/ecs/systems / [renderer],
+  clean_game/net/client as net_client
 
 type Game = ref object
   reg: Registry
@@ -30,6 +31,7 @@ type Client = ref object
   renderer: RendererPtr
   inputs: set[Input]
   game: Game
+  netClient*: net_client.Client
 
 proc newClient(): Client =
   new result
@@ -48,7 +50,7 @@ proc newClient(): Client =
     Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture
   )
 
-  result.game = newGame()
+  discard result.renderer.setDrawColor(100, 100, 200, 255)
 
   global.keyboard = newKeyboard()
   global.keyboard.addInput(
@@ -56,10 +58,29 @@ proc newClient(): Client =
     keyboard.KeyState.Unheld,
     Input.Quit
   )
+  global.keyboard.addInput(
+    SDL_SCANCODE_I,
+    keyboard.KeyState.Unheld,
+    Input.RequestInfo
+  )
+  global.keyboard.addInput(
+    SDL_SCANCODE_C,
+    keyboard.KeyState.Unheld,
+    Input.Connect
+  )
+  global.keyboard.addInput(
+    SDL_SCANCODE_V,
+    keyboard.KeyState.Unheld,
+    Input.Disconnect
+  )
 
-  discard result.renderer.setDrawColor(100, 100, 200, 255)
+  result.game = newGame()
+
+  result.netClient = net_client.newClient()
+  result.netClient.open()
 
 proc destroy(client: Client) =
+  client.netClient.close()
   client.window.destroy()
   client.renderer.destroy()
 
@@ -106,7 +127,8 @@ proc main() =
     global.keyboard.updateKeys()
     client.update()
     global.keyboard.processKeys(client.inputs)
-    processInputs(client.inputs)
+    processInputs(client.inputs, client.netClient)
+    client.netClient.sendMsgs()
     client.render()
 
     # Sleep until next tick needed

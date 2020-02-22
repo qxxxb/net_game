@@ -84,6 +84,7 @@ proc updateKeys*(keyboard: Keyboard) =
   keyboard.keys[KeyState.Released] = {}
 
 proc processKeys*(keyboard: Keyboard, inputs: var set[Input]) =
+  inputs = {}
   for keyState, keys in keyboard.keys:
     for key in keys:
       let keyAction = KeyAction(
