@@ -9,7 +9,7 @@ import
   sets,
   ../util/ticks as ticks_m,
   ../server/global,
-  ./protocol/client_msg
+  ./protocol / [client_msg, server_msg]
 
 type SendState {.pure.} = enum
   ## What is being sent to the client
@@ -32,8 +32,15 @@ type ClientKey = object
   address: string
   port: Port
 
-type Client = object
+type Client = ref object
   state: ClientState
+  msgsToSend: seq[ServerMsg]
+
+proc `$`(client: Client): string =
+  # TODO: For some reason I need to implement this
+  result =
+    "Client: { state: " & $client.state &
+    " msgsToSend: " & $client.msgsToSend & "}"
 
 proc initClientKey(address: string, port: Port): ClientKey =
   ClientKey(
@@ -41,12 +48,13 @@ proc initClientKey(address: string, port: Port): ClientKey =
     port: port
   )
 
-proc initClient(): Client =
+proc newClient(): Client =
   Client(
     state: ClientState(
       sendState: SendState.None,
       recvState: RecvState.None
-    )
+    ),
+    msgsToSend: newSeq[ServerMsg](),
   )
 
 proc hash*(clientKey: ClientKey): Hash =
@@ -98,6 +106,10 @@ proc shouldSendSnapshot(client: Client): bool =
     client.ticksSinceAck() > client.snapshotPeriod()
   else: false
 
+proc saveMsg*(client: Client, msg: ServerMsg) =
+  ## Save a msg to send later
+  client.msgsToSend.add(msg)
+
 type Server* = ref object
   socketHandle: SocketHandle
   socket: Socket
@@ -127,13 +139,21 @@ proc close*(server: Server) =
   server.socket.close()
 
 proc sendInfo(server: Server, clientKey: ClientKey) =
-  server.socket.sendTo(clientKey.address, clientKey.port, "Welcome to my server")
+  let msg = initServerMsg(kind = ServerMsgKind.Info)
+  var msgBytes = msg.toBytes()
+  server.socket.sendTo(
+    clientKey.address,
+    clientKey.port,
+    data = msgBytes[0].addr(),
+    size = msgBytes.len
+  )
   info &"Sent info to {clientKey.address}:{clientKey.port}"
 
 proc connect(server: Server, clientKey: ClientKey) =
-  var client = initClient()
+  var client = newClient()
   client.state.recvState = RecvState.GameInput
   client.state.sendState = SendState.Connecting
+  client.state.ackedTick = global.tick
   server.clients[clientKey] = client
   info &"Connected {clientKey.address}:{clientKey.port}"
 
@@ -145,10 +165,16 @@ proc disconnect(server: Server, clientKey: ClientKey) =
     warn "Got disconnect from unconnected client"
 
 proc sendSnapshot(server: Server, clientKey: ClientKey) =
+  let msg = initServerMsg(
+    kind = ServerMsgKind.GameSnapshot,
+    tick = global.tick
+  )
+  var msgBytes = msg.toBytes()
   server.socket.sendTo(
     clientKey.address,
     clientKey.port,
-    &"[{global.tick}] World snapshot"
+    data = msgBytes[0].addr(),
+    size = msgBytes.len
   )
   info(
     &"Sent snapshot at tick {global.tick} to" &
@@ -173,40 +199,40 @@ proc recv*(server: Server) =
         flags = 0'i32
       )
     except OSError:
-      debug &"No messages in socket ({recvLen})"
       break
 
-    if recvLen > 0:
-      info &"Recv [{senderAddress}:{senderPort}] ({recvLen}): `{data}`"
-      var clientMsg = data.readClientMsg()
-      info &"clientMsg: {clientMsg}"
+    debug &"Recv [{senderAddress}:{senderPort}] ({recvLen})"
 
-      # var clientKey = initClientKey(senderAddress, senderPort)
-      # debug "Clients: ", server.clients
+    var clientKey = initClientKey(senderAddress, senderPort)
+    debug "Clients: ", server.clients
 
-      # type ParsedData = object
-      #   ackedTick: int
+    var clientMsg = data.readClientMsg()
+    debug &"clientMsg: {clientMsg}"
 
-      # var parsedData = ParsedData()
+    if not clientMsg.has(kind):
+      warn "Client msg has no `kind`, discarding"
+      continue
 
-      # if data == "Info request":
-      #   server.sendInfo(clientKey)
-      # elif data == "Connect":
-      #   server.connect(clientKey)
-      # elif data == "Disconnect":
-      #   server.disconnect(clientKey)
-      # elif data.scanf("[$i] Ack", parsedData.ackedTick):
-      #   if clientKey in server.clients:
-      #     let ackedTick = parsedData.ackedTick.Tick()
-      #     server.clients[clientKey].state.ackedTick = ackedTick
-      #     server.clients[clientKey].state.sendState = SendState.GameSnapshot
-      #     info &"Acked snapshot {ackedTick} from {senderAddress}:{senderPort}"
-      #   else:
-      #     warn "Got ack from unconnected client"
-
-      # else:
-      #   # TODO: Save inputs and process
-      #   discard
+    let kind = clientMsg.private_kind
+    case kind
+    of ClientMsgKind.RequestInfo:
+      server.sendInfo(clientKey)
+    of ClientMsgKind.Connect:
+      server.connect(clientKey)
+    of ClientMsgKind.Disconnect:
+      server.disconnect(clientKey)
+    of ClientMsgKind.Ack:
+      if clientKey in server.clients:
+        let ackedTick = clientMsg.private_ackedTick
+        server.clients[clientKey].state.ackedTick = ackedTick
+        server.clients[clientKey].state.sendState = SendState.GameSnapshot
+        info &"Acked snapshot {ackedTick} from {senderAddress}:{senderPort}"
+      else:
+        warn "Got ack from unconnected client"
+    of ClientMsgKind.GameInput:
+      # TODO: Save inputs and process
+      # TODO: Check that client is connected
+      discard
 
 proc send*(server: Server) =
   var clientsToDisconnect = initHashSet[ClientKey]()

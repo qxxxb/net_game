@@ -127,6 +127,7 @@ proc main() =
   while Input.Quit notin client.inputs:
     let tickStart = times.getTime()
     global.keyboard.updateKeys()
+    client.netClient.recv()
     client.update()
     global.keyboard.processKeys(client.inputs)
     processInputs(client.inputs, client.netClient)

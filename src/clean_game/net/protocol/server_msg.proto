@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+message ServerMsg {
+    enum Kind {
+        Info = 0;
+        GameSnapshot = 1;
+    }
+
+    Kind kind = 1;
+    uint32 tick = 2;
+}

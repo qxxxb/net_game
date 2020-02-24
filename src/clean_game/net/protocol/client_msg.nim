@@ -1,4 +1,5 @@
 import
+  logging,
   protobuf,
   os
 
@@ -16,8 +17,6 @@ proc `$`*(clientMsg: ClientMsg): string =
   var stream = newStringStream()
   stream.write(clientMsg)
 
-  # Read the message from the stream and output the data if it's all present
-  # TODO: return something even if it doesn't have the `gameInputs` field
   stream.setPosition(0)
   var readMsg = stream.readClientMsg()
 
@@ -38,8 +37,10 @@ proc toBytes*(clientMsg: ClientMsg): seq[char] =
   result = newSeq[char](clientMsg.len + 1)
   stream.setPosition(0)
   let readLen = stream.readData(result[0].addr(), result.len)
-  assert readLen == result.len
-  assert stream.atEnd()
+  if readLen != result.len:
+    warn "[toBytes] readLen != result.len"
+  if not stream.atEnd():
+    warn "[toBytes] not stream.atEnd()"
   stream.close()
 
 proc readClientMsg*(bytes: seq[char]): ClientMsg =

@@ -6,6 +6,7 @@ message ClientMsg {
         Connect = 1;
         Disconnect = 2;
         GameInput = 3;
+        Ack = 4;
     }
 
     enum GameInput {
@@ -17,4 +18,5 @@ message ClientMsg {
 
     Kind kind = 1;
     repeated GameInput gameInputs = 2;
+    uint32 ackedTick = 3;
 }

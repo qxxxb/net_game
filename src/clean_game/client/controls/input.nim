@@ -28,21 +28,13 @@ proc processInputs*(
   for input in inputs:
     case input
     of Input.RequestInfo:
-      let msg = initClientMsg(kind = ClientMsgKind.RequestInfo)
-      netClient.saveMsg(msg)
+      netClient.requestInfo()
     of Input.Connect:
-      let msg = initClientMsg(kind = ClientMsgKind.Connect)
-      netClient.saveMsg(msg)
+      netClient.connect()
     of Input.Disconnect:
-      let msg = initClientMsg(kind = ClientMsgKind.Disconnect)
-      netClient.saveMsg(msg)
+      netClient.disconnect()
     of Input.Left, Input.Right, Input.Up, Input.Down:
       gameInputs.add(input.toGameInput())
     else: discard
 
-  if gameInputs.len > 0:
-    let msg = initClientMsg(
-      kind = ClientMsgKind.GameInput,
-      gameInputs = gameInputs
-    )
-    netClient.saveMsg(msg)
+  netClient.sendGameInputs(gameInputs)
