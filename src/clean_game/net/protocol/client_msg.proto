@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+message ClientMsg {
+    enum Kind {
+        RequestInfo = 0;
+        Connect = 1;
+        Disconnect = 2;
+        GameInput = 3;
+    }
+
+    enum GameInput {
+        MoveLeft = 0;
+        MoveRight = 1;
+        MoveUp = 2;
+        MoveDown = 3;
+    }
+
+    Kind kind = 1;
+    repeated GameInput gameInputs = 2;
+}

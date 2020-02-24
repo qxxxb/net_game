@@ -1,6 +1,6 @@
 import
   strformat,
-  ../../net/protocol,
+  ../../net/protocol/client_msg,
   ../../net/client as net_client
 
 type
@@ -24,21 +24,25 @@ proc processInputs*(
   inputs: set[Input],
   netClient: net_client.Client
 ) =
+  var gameInputs = newSeq[GameInput]()
   for input in inputs:
     case input
     of Input.RequestInfo:
-      let msg = Msg(kind: MsgKind.RequestInfo)
+      let msg = initClientMsg(kind = ClientMsgKind.RequestInfo)
       netClient.saveMsg(msg)
     of Input.Connect:
-      let msg = Msg(kind: MsgKind.Connect)
+      let msg = initClientMsg(kind = ClientMsgKind.Connect)
       netClient.saveMsg(msg)
     of Input.Disconnect:
-      let msg = Msg(kind: MsgKind.Disconnect)
+      let msg = initClientMsg(kind = ClientMsgKind.Disconnect)
       netClient.saveMsg(msg)
     of Input.Left, Input.Right, Input.Up, Input.Down:
-      let msg = Msg(
-        kind: MsgKind.GameInput,
-        data: input.toGameInput()
-      )
-      netClient.saveMsg(msg)
+      gameInputs.add(input.toGameInput())
     else: discard
+
+  if gameInputs.len > 0:
+    let msg = initClientMsg(
+      kind = ClientMsgKind.GameInput,
+      gameInputs = gameInputs
+    )
+    netClient.saveMsg(msg)

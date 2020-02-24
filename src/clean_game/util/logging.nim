@@ -1,7 +1,16 @@
 import std/logging
 export logging
 
-proc initLogging*() =
+proc initLogging*(name: string) =
   addHandler(newConsoleLogger())
+  addHandler(
+    newFileLogger(
+      name & ".log",
+      mode = fmWrite,
+      levelThreshold = lvlAll,
+      fmtStr = verboseFmtStr
+    )
+  )
+
   when defined release:
     setLogFilter(lvlInfo)

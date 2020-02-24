@@ -106,6 +106,8 @@ proc render(client: Client) =
   client.renderer.present()
 
 proc main() =
+  initLogging("client")
+
   if not sdl2.init(INIT_EVERYTHING):
     sdlException("SDL2 initialization failed")
   defer: sdl2.quit()

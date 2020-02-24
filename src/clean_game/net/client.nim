@@ -2,30 +2,17 @@ import
   logging,
   net,
   nativesockets,
-  ./protocol
-
-# TODO: should this be in `protocol`?
-type MsgKind* {.pure.} = enum
-  RequestInfo,
-  Connect,
-  Disconnect,
-  GameInput
-
-type Msg* = object
-  case kind*: MsgKind
-  of MsgKind.GameInput:
-    data*: GameInput
-  else: discard
+  ./protocol/client_msg
 
 type Client* = ref object
   gameInputs: set[GameInput]
   socketFd: SocketHandle
   socket: Socket
-  msgs: seq[Msg] ## Msgs to send
+  msgsToSend: seq[ClientMsg]
 
 proc newClient*(): Client =
   Client(
-    msgs: newSeq[Msg]()
+    msgsToSend: newSeq[ClientMsg]()
   )
 
 proc open*(client: Client) =
@@ -49,16 +36,23 @@ proc close*(client: Client) =
 const serverAddress = "localhost"
 let serverPort = Port(2000)
 
-proc saveMsg*(client: Client, msg: Msg) =
+proc saveMsg*(client: Client, msg: ClientMsg) =
   ## Save a msg to send later
-  client.msgs.add(msg)
+  client.msgsToSend.add(msg)
 
 proc sendMsgs*(client: Client) =
   ## TODO: Send saved msgs
-  for msg in client.msgs:
-    echo "msg: ", msg
+  for msg in client.msgsToSend:
+    echo "[sendMsgs] msg: ", msg
+    var msgBytes = msg.toBytes()
+    client.socket.sendTo(
+      serverAddress,
+      serverPort,
+      data = msgBytes[0].addr(),
+      size = msgBytes.len
+    )
 
-  client.msgs.setLen(0)
+  client.msgsToSend.setLen(0)
 
 proc recv*(client: Client) =
   discard
