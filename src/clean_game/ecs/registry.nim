@@ -82,3 +82,12 @@ proc componentOfEntity*(
 ): Component =
   ## Get component of `class` belonging to `entity`
   reg.data[entity][class]
+
+proc removeComponent*(
+  reg: Registry,
+  entity: Entity,
+  class: CompClass
+) =
+  ## Remove component of `class` belonging to `entity`
+  reg.data[entity][class] = nil
+  reg.dataGrouped[class].del(entity)

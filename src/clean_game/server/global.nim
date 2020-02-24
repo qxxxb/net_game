@@ -1,4 +1,6 @@
 import
-  ../util/ticks
+  ../util/ticks,
+  ../ecs/registry
 
-var tick* : Tick
+var tick*: Tick
+var reg*: Registry

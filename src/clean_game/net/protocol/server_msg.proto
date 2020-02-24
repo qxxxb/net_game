@@ -6,6 +6,16 @@ message ServerMsg {
         GameSnapshot = 1;
     }
 
+    message PlayerSnapshot {
+        float posX = 1;
+        float posY = 2;
+    }
+
+    message GameSnapshot {
+        uint32 tick = 1;
+        repeated PlayerSnapshot playerSnapshots = 2;
+    }
+
     Kind kind = 1;
-    uint32 tick = 2;
+    GameSnapshot gameSnapshot = 2;
 }

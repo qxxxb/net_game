@@ -3,14 +3,25 @@ import
   os,
   clean_game/util / [logging, ticks],
   clean_game/net/server as net_server,
-  clean_game/server/global
+  clean_game/server/global,
+  clean_game/ecs/registry
+
+type Game = ref object
+  ## Nothing here for now
+
+proc newGame(): Game =
+  new result
+  global.reg = newRegistry()
 
 type Server* = ref object
+  game: Game
   netServer: net_server.Server
 
 proc newServer(): Server =
   new result
   global.tick = 0
+  result.game = newGame()
+
   result.netServer = net_server.newServer()
   result.netServer.open()
 

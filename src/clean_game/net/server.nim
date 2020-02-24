@@ -7,9 +7,13 @@ import
   hashes,
   times,
   sets,
+  options,
   ../util/ticks as ticks_m,
   ../server/global,
-  ./protocol / [client_msg, server_msg]
+  ./protocol / [client_msg, server_msg],
+  ../ecs/entity,
+  ../server/entities/player,
+  ../util/physical
 
 type SendState {.pure.} = enum
   ## What is being sent to the client
@@ -35,6 +39,7 @@ type ClientKey = object
 type Client = ref object
   state: ClientState
   msgsToSend: seq[ServerMsg]
+  player: Option[Entity]
 
 proc `$`(client: Client): string =
   # TODO: For some reason I need to implement this
@@ -140,12 +145,10 @@ proc close*(server: Server) =
 
 proc sendInfo(server: Server, clientKey: ClientKey) =
   let msg = initServerMsg(kind = ServerMsgKind.Info)
-  var msgBytes = msg.toBytes()
   server.socket.sendTo(
     clientKey.address,
     clientKey.port,
-    data = msgBytes[0].addr(),
-    size = msgBytes.len
+    msg.toProto()
   )
   info &"Sent info to {clientKey.address}:{clientKey.port}"
 
@@ -157,7 +160,19 @@ proc connect(server: Server, clientKey: ClientKey) =
   server.clients[clientKey] = client
   info &"Connected {clientKey.address}:{clientKey.port}"
 
+  var player = newPlayer()
+  player.spawn()
+  client.player = player.entity.some()
+  info &"Spawned player with ID {client.player}"
+
 proc disconnect(server: Server, clientKey: ClientKey) =
+  var client = server.clients[clientKey]
+  if client.player.isSome():
+    var player = toPlayer(client.player.get())
+    player.despawn()
+    info &"Despawned player with ID {client.player.get()}"
+    client.player = Entity.none()
+
   if clientKey in server.clients:
     server.clients.del(clientKey)
     info &"Disconnected {clientKey.address}:{clientKey.port}"
@@ -165,16 +180,25 @@ proc disconnect(server: Server, clientKey: ClientKey) =
     warn "Got disconnect from unconnected client"
 
 proc sendSnapshot(server: Server, clientKey: ClientKey) =
-  let msg = initServerMsg(
-    kind = ServerMsgKind.GameSnapshot,
-    tick = global.tick
+  var playerSnapshot = initServerMsg_PlayerSnapshot(
+    posX = 20.0,
+    posY = 40.0
   )
-  var msgBytes = msg.toBytes()
+
+  var gameSnapshot = initServerMsg_GameSnapshot(
+    tick = global.tick,
+    playerSnapshots = @[playerSnapshot]
+  )
+
+  var msg = initServerMsg(
+    kind = ServerMsgKind.GameSnapshot,
+    gameSnapshot = gameSnapshot
+  )
+
   server.socket.sendTo(
     clientKey.address,
     clientKey.port,
-    data = msgBytes[0].addr(),
-    size = msgBytes.len
+    msg.toProto()
   )
   info(
     &"Sent snapshot at tick {global.tick} to" &
@@ -230,8 +254,30 @@ proc recv*(server: Server) =
       else:
         warn "Got ack from unconnected client"
     of ClientMsgKind.GameInput:
-      # TODO: Save inputs and process
-      # TODO: Check that client is connected
+      # Check that client is connected
+      if clientKey in server.clients:
+        # TODO: Save inputs and process later, rather than processing right
+        # here
+        if clientMsg.has(gameInputs):
+          let gameInputs = clientMsg.private_gameInputs
+          let client = server.clients[clientKey]
+          var player = toPlayer(client.player.get())
+          for gameInput in gameInputs:
+            let offset =
+              case gameInput
+              of GameInput.MoveLeft:
+                vec2(-2.0, 0.0)
+              of GameInput.MoveRight:
+                vec2(2.0, 0.0)
+              of GameInput.MoveUp:
+                vec2(0.0, -2.0)
+              of GameInput.MoveDown:
+                vec2(0.0, 2.0)
+            player.move(offset)
+        else:
+          warn "No game inputs in client msg"
+      else:
+        warn "Got game inputs from unconnected client"
       discard
 
 proc send*(server: Server) =

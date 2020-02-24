@@ -5,9 +5,17 @@ import
 
 parseProtoFile("src" / "clean_game" / "net" / "protocol" / "server_msg.proto")
 
-export initServerMsg
-export ServerMsgKind
 export ServerMsg
+export ServerMsgKind
+# TODO: Aliasing these types causes problems
+export ServerMsgPlayerSnapshot
+export ServerMsgGameSnapshot
+
+export initServerMsg
+# TODO: I don't know how to alias these long macros
+export initServerMsg_PlayerSnapshot
+export initServerMsg_GameSnapshot
+
 export readServerMsg
 export has
 
@@ -24,31 +32,28 @@ proc `$`*(serverMsg: ServerMsg): string =
   if readMsg.has(kind):
     fieldsStr.add("kind: " & $readMsg.kind)
 
-  if readMsg.has(tick):
-    fieldsStr.add("tick: " & $readMsg.tick)
+  # TODO: Print with nesting
+  if readMsg.has(gameSnapshot):
+    var gameSnapshot = readMsg.gameSnapshot
+    if gameSnapshot.has(tick):
+      fieldsStr.add("tick: " & $gameSnapshot.tick)
+    if gameSnapshot.has(playerSnapshots):
+      var playerSnapshots = gameSnapshot.playerSnapshots
+      for playerSnapshot in playerSnapshots:
+        if playerSnapshot.has(posX):
+          fieldsStr.add("posX: " & $playerSnapshot.posX)
+        if playerSnapshot.has(posY):
+          fieldsStr.add("posY: " & $playerSnapshot.posY)
 
   result = "ServerMsg: {" & fieldsStr.join(", ") & "}"
 
-proc toBytes*(serverMsg: ServerMsg): seq[char] =
+proc toProto*(serverMsg: ServerMsg): string =
   var stream = newStringStream()
   stream.write(serverMsg, writeSize = false)
-
-  result = newSeq[char](serverMsg.len + 1)
   stream.setPosition(0)
-  let readLen = stream.readData(result[0].addr(), result.len)
-  if readLen != result.len:
-    warn "[toBytes] readLen != result.len"
-  if not stream.atEnd():
-    warn "[toBytes] not stream.atEnd()"
-  stream.close()
+  stream.readAll()
 
-proc readServerMsg*(bytes: seq[char]): ServerMsg =
-  var stream = newStringStream()
-  stream.writeData(bytes[0].unsafeAddr(), bytes.len * sizeof(char))
-  stream.setPosition(0)
-  result = stream.readServerMsg()
-
-proc readServerMsg*(bytesString: string): ServerMsg =
-  var stream = newStringStream(bytesString)
+proc readServerMsg*(data: string): ServerMsg =
+  var stream = newStringStream(data)
   stream.setPosition(0)
   result = stream.readServerMsg()

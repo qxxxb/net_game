@@ -81,12 +81,10 @@ proc sendMsgs*(client: Client) =
   ## Send saved msgs
   for msg in client.msgsToSend:
     echo "[sendMsgs] msg: ", msg
-    var msgBytes = msg.toBytes()
     client.socket.sendTo(
       serverAddress,
       serverPort,
-      data = msgBytes[0].addr(),
-      size = msgBytes.len
+      msg.toProto()
     )
 
   client.msgsToSend.setLen(0)
@@ -136,15 +134,20 @@ proc recv*(client: Client) =
 
       of RecvState.GameSnapshot:
         if kind == ServerMsgKind.GameSnapshot:
-          if serverMsg.has(tick):
-            let snapshotTick = serverMsg.private_tick
-            info &"Received world snapshot at tick {snapshotTick}"
-            let msg = initClientMsg(
-              kind = ClientMsgKind.Ack,
-              ackedTick = snapshotTick
-            )
-            client.saveMsg(msg)
-            debug &"Saved (for sending) ack for tick {snapshotTick}"
+          if serverMsg.has(gameSnapshot):
+            var gameSnapshot = serverMsg.private_gameSnapshot
+            if gameSnapshot.has(tick):
+              let snapshotTick = gameSnapshot.private_tick
+              info &"Received world snapshot at tick {snapshotTick}"
+              let msg = initClientMsg(
+                kind = ClientMsgKind.Ack,
+                ackedTick = snapshotTick
+              )
+              client.saveMsg(msg)
+              debug &"Saved (for sending) ack for tick {snapshotTick}"
+            else:
+              warn &"Game snapshot has no `tick`"
           else:
-            warn &"Game snapshot has no `tick`"
+            warn &"Server msg has no game snapshot"
+
       else: discard

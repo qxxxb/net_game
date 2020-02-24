@@ -30,26 +30,13 @@ proc `$`*(clientMsg: ClientMsg): string =
 
   result = "ClientMsg: {" & fieldsStr.join(", ") & "}"
 
-proc toBytes*(clientMsg: ClientMsg): seq[char] =
+proc toProto*(clientMsg: ClientMsg): string =
   var stream = newStringStream()
   stream.write(clientMsg, writeSize = false)
-
-  result = newSeq[char](clientMsg.len + 1)
   stream.setPosition(0)
-  let readLen = stream.readData(result[0].addr(), result.len)
-  if readLen != result.len:
-    warn "[toBytes] readLen != result.len"
-  if not stream.atEnd():
-    warn "[toBytes] not stream.atEnd()"
-  stream.close()
+  stream.readAll()
 
-proc readClientMsg*(bytes: seq[char]): ClientMsg =
-  var stream = newStringStream()
-  stream.writeData(bytes[0].unsafeAddr(), bytes.len * sizeof(char))
-  stream.setPosition(0)
-  result = stream.readClientMsg()
-
-proc readClientMsg*(bytesString: string): ClientMsg =
-  var stream = newStringStream(bytesString)
+proc readClientMsg*(data: string): ClientMsg =
+  var stream = newStringStream(data)
   stream.setPosition(0)
   result = stream.readClientMsg()
