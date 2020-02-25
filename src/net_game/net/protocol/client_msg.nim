@@ -3,7 +3,7 @@ import
   protobuf,
   os
 
-parseProtoFile("src" / "clean_game" / "net" / "protocol" / "client_msg.proto")
+parseProtoFile("src" / "net_game" / "net" / "protocol" / "client_msg.proto")
 
 export initClientMsg
 export ClientMsgKind

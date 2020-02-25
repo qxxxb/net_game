@@ -2,7 +2,7 @@
 
 version       = "0.1.0"
 author        = "qxxxb"
-description   = "A clean game"
+description   = "Networked multiplayer game"
 license       = "MIT"
 srcDir        = "src"
 bin           = @["server", "client"]

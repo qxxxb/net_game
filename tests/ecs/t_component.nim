@@ -1,8 +1,8 @@
 import
   unittest,
-  clean_game/util / [physical, drawing],
-  clean_game/ecs/component,
-  clean_game/ecs/components / [visible, pos, shape]
+  net_game/util / [physical, drawing],
+  net_game/ecs/component,
+  net_game/ecs/components / [visible, pos, shape]
 
 suite "Component":
   test "Get class":

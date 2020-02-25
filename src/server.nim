@@ -1,10 +1,10 @@
 import
   times,
   os,
-  clean_game/util / [logging, ticks],
-  clean_game/net/server as net_server,
-  clean_game/server/global,
-  clean_game/ecs/registry
+  net_game/util / [logging, ticks],
+  net_game/net/server as net_server,
+  net_game/server/global,
+  net_game/ecs/registry
 
 type Game = ref object
   ## Nothing here for now

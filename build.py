@@ -12,7 +12,7 @@ orig_path = Path.cwd()
 project_path = Path(os.path.dirname(os.path.realpath(__file__)))
 os.chdir(project_path)
 
-project_name = 'clean_game'
+project_name = 'net_game'
 build_dir = 'build'
 src_dir = 'src'
 cfg_dir = 'cfg'

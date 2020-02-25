@@ -4,15 +4,15 @@ import
   options,
   os,
   times,
-  clean_game/util / [logging, exceptions, physical, drawing, ticks],
-  clean_game/client/controls/sources/keyboard,
-  clean_game/client/global,
-  clean_game/ecs,
-  clean_game/ecs/registry,
-  clean_game/client/entities / [player],
-  clean_game/ecs/systems / [renderer],
-  clean_game/net/client as net_client,
-  clean_game/net/protocol/client_msg
+  net_game/util / [logging, exceptions, physical, drawing, ticks],
+  net_game/client/controls/sources/keyboard,
+  net_game/client/global,
+  net_game/ecs,
+  net_game/ecs/registry,
+  net_game/client/entities / [player],
+  net_game/ecs/systems / [renderer],
+  net_game/net/client as net_client,
+  net_game/net/protocol/client_msg
 
 type Game = ref object
   ## Nothing here
