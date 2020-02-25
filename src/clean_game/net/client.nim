@@ -114,7 +114,7 @@ proc processPlayerSnapshot*(
     warn "Player snapshot missing posY"
     return
 
-  info &"Player [{entity}]: pos: ({pos.x}, {pos.y})"
+  debug &"Player [{entity}]: pos: ({pos.x}, {pos.y})"
   var player = newPlayer(entity)
   if not player.isSpawned():
     player.spawn()
@@ -134,7 +134,7 @@ proc processGameSnapshot*(
 ) =
   if gameSnapshot.has(tick):
     let snapshotTick = gameSnapshot.private_tick
-    info &"Received world snapshot at tick {snapshotTick}"
+    debug &"Received world snapshot at tick {snapshotTick}"
     let msg = initClientMsg(
       kind = ClientMsgKind.Ack,
       ackedTick = snapshotTick
@@ -193,7 +193,7 @@ proc recv*(client: Client) =
       except OSError:
         break
 
-      info &"Recv [{senderAddress}:{senderPort}] ({recvLen}): {data}"
+      debug &"Recv [{senderAddress}:{senderPort}] ({recvLen})"
 
       # TODO: Verify that sender is server.
       # Don't know if this is necessary

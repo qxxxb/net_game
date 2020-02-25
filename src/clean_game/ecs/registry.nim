@@ -146,5 +146,5 @@ proc getEntityByTag*(
   tag: EntityTag
 ): Entity =
   var entities = reg.getEntitiesByTag(tag)
-  assert entities.card == 0
+  assert entities.card == 1
   entities.pop()

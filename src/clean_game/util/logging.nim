@@ -14,5 +14,3 @@ proc initLogging*(name: string) =
 
   when defined release:
     setLogFilter(lvlInfo)
-  else:
-    setLogFilter(lvlInfo)

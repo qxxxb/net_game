@@ -164,7 +164,7 @@ proc connect(server: Server, clientKey: ClientKey) =
     var player = newPlayer()
     player.spawn()
     client.player = player.entity.some()
-    info &"Spawned player with ID {client.player}"
+    info &"Spawned player with ID {client.player.get()}"
   else:
     warn "Got connect from already connected client"
 
@@ -214,7 +214,7 @@ proc sendSnapshot(server: Server, clientKey: ClientKey) =
     clientKey.port,
     msg.toProto()
   )
-  info(
+  debug(
     &"Sent snapshot at tick {global.tick} to" &
     &" {clientKey.address}:{clientKey.port}"
   )
@@ -264,7 +264,7 @@ proc recv*(server: Server) =
         let ackedTick = clientMsg.private_ackedTick
         server.clients[clientKey].state.ackedTick = ackedTick
         server.clients[clientKey].state.sendState = SendState.GameSnapshot
-        info &"Acked snapshot {ackedTick} from {senderAddress}:{senderPort}"
+        debug &"Acked snapshot {ackedTick} from {senderAddress}:{senderPort}"
       else:
         warn "Got ack from unconnected client"
     of ClientMsgKind.GameInput:
