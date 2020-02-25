@@ -1,5 +1,6 @@
 # TODO
 
+- [ ] Crashes on disconnect
 - [ ] Crashes when trying to connect after disconnecting
 - [ ] Server
   - [ ] Save client inputs in `recv`
