@@ -54,6 +54,13 @@ proc saveMsg*(client: Client, msg: ClientMsg) =
   ## Save a msg to send later
   client.msgsToSend.add(msg)
 
+import
+  ../util/physical,
+  ../ecs/entity,
+  ../ecs/registry,
+  ../client/entities/player,
+  ../client/global
+
 proc requestInfo*(client: Client) =
   let msg = initClientMsg(kind = ClientMsgKind.RequestInfo)
   client.saveMsg(msg)
@@ -65,6 +72,11 @@ proc connect*(client: Client) =
   client.state.recvState = RecvState.GameSnapshot
 
 proc disconnect*(client: Client) =
+  var playerEntity = global.reg.getEntityByTag(EntityTag.Player)
+  var player = newPlayer(playerEntity)
+  if player.isSpawned():
+    player.despawn()
+
   let msg = initClientMsg(kind = ClientMsgKind.Disconnect)
   client.saveMsg(msg)
   client.state.recvState = RecvState.None
@@ -77,10 +89,80 @@ proc sendGameInputs*(client: Client, gameInputs: seq[GameInput]) =
     )
     client.saveMsg(msg)
 
+proc processPlayerSnapshot*(
+  client: Client,
+  playerSnapshot: ServerMsg_PlayerSnapshot
+) =
+  var entity: Entity
+  var pos: physical.Pos
+
+  if playerSnapshot.has(id):
+    entity = playerSnapshot.private_id
+  else:
+    warn "Player snapshot missing ID"
+    return
+
+  if playerSnapshot.has(posX):
+    pos.x = playerSnapshot.private_posX
+  else:
+    warn "Player snapshot missing posX"
+    return
+
+  if playerSnapshot.has(posY):
+    pos.y = playerSnapshot.private_posY
+  else:
+    warn "Player snapshot missing posY"
+    return
+
+  info &"Player [{entity}]: pos: ({pos.x}, {pos.y})"
+  var player = newPlayer(entity)
+  if not player.isSpawned():
+    player.spawn()
+
+  player.setPos(pos)
+
+proc processPlayerSnapshots*(
+  client: Client,
+  playerSnapshots: openArray[ServerMsg_PlayerSnapshot]
+) =
+  for playerSnapshot in playerSnapshots:
+    client.processPlayerSnapshot(playerSnapshot)
+
+proc processGameSnapshot*(
+  client: Client,
+  gameSnapshot: ServerMsg_GameSnapshot
+) =
+  if gameSnapshot.has(tick):
+    let snapshotTick = gameSnapshot.private_tick
+    info &"Received world snapshot at tick {snapshotTick}"
+    let msg = initClientMsg(
+      kind = ClientMsgKind.Ack,
+      ackedTick = snapshotTick
+    )
+    client.saveMsg(msg)
+    debug &"Saved (for sending) ack for tick {snapshotTick}"
+
+    if gameSnapshot.has(playerSnapshots):
+      let playerSnapshots = gameSnapshot.private_playerSnapshots
+      client.processPlayerSnapshots(playerSnapshots)
+  else:
+    warn "Game snapshot has no `tick`"
+
+proc processGameSnapshot*(
+  client: Client,
+  serverMsg: ServerMsg
+) =
+  ## Expects `serverMsg.kind` to be `ServerMsgKind.GameSnapshot`
+  if serverMsg.has(gameSnapshot):
+    var gameSnapshot = serverMsg.private_gameSnapshot
+    client.processGameSnapshot(gameSnapshot)
+  else:
+    warn "Server msg has no game snapshot"
+
 proc sendMsgs*(client: Client) =
   ## Send saved msgs
   for msg in client.msgsToSend:
-    echo "[sendMsgs] msg: ", msg
+    debug "[sendMsgs] msg: ", msg
     client.socket.sendTo(
       serverAddress,
       serverPort,
@@ -133,21 +215,6 @@ proc recv*(client: Client) =
           info &"Server info: {serverMsg}"
 
       of RecvState.GameSnapshot:
-        if kind == ServerMsgKind.GameSnapshot:
-          if serverMsg.has(gameSnapshot):
-            var gameSnapshot = serverMsg.private_gameSnapshot
-            if gameSnapshot.has(tick):
-              let snapshotTick = gameSnapshot.private_tick
-              info &"Received world snapshot at tick {snapshotTick}"
-              let msg = initClientMsg(
-                kind = ClientMsgKind.Ack,
-                ackedTick = snapshotTick
-              )
-              client.saveMsg(msg)
-              debug &"Saved (for sending) ack for tick {snapshotTick}"
-            else:
-              warn &"Game snapshot has no `tick`"
-          else:
-            warn &"Server msg has no game snapshot"
+        client.processGameSnapshot(serverMsg)
 
       else: discard

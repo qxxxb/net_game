@@ -153,41 +153,55 @@ proc sendInfo(server: Server, clientKey: ClientKey) =
   info &"Sent info to {clientKey.address}:{clientKey.port}"
 
 proc connect(server: Server, clientKey: ClientKey) =
-  var client = newClient()
-  client.state.recvState = RecvState.GameInput
-  client.state.sendState = SendState.Connecting
-  client.state.ackedTick = global.tick
-  server.clients[clientKey] = client
-  info &"Connected {clientKey.address}:{clientKey.port}"
+  if clientKey notin server.clients:
+    var client = newClient()
+    client.state.recvState = RecvState.GameInput
+    client.state.sendState = SendState.Connecting
+    client.state.ackedTick = global.tick
+    server.clients[clientKey] = client
+    info &"Connected {clientKey.address}:{clientKey.port}"
 
-  var player = newPlayer()
-  player.spawn()
-  client.player = player.entity.some()
-  info &"Spawned player with ID {client.player}"
+    var player = newPlayer()
+    player.spawn()
+    client.player = player.entity.some()
+    info &"Spawned player with ID {client.player}"
+  else:
+    warn "Got connect from already connected client"
 
 proc disconnect(server: Server, clientKey: ClientKey) =
-  var client = server.clients[clientKey]
-  if client.player.isSome():
-    var player = toPlayer(client.player.get())
-    player.despawn()
-    info &"Despawned player with ID {client.player.get()}"
-    client.player = Entity.none()
-
   if clientKey in server.clients:
+    var client = server.clients[clientKey]
+    if client.player.isSome():
+      var player = newPlayer(client.player.get())
+      player.despawn()
+      info &"Despawned player with ID {client.player.get()}"
+      client.player = Entity.none()
+
     server.clients.del(clientKey)
     info &"Disconnected {clientKey.address}:{clientKey.port}"
   else:
     warn "Got disconnect from unconnected client"
 
+import
+  ../ecs/registry
+
 proc sendSnapshot(server: Server, clientKey: ClientKey) =
-  var playerSnapshot = initServerMsg_PlayerSnapshot(
-    posX = 20.0,
-    posY = 40.0
-  )
+  var playerSnapshots: seq[ServerMsg_PlayerSnapshot]
+
+  var playerEntities = global.reg.getEntitiesByTag(EntityTag.Player)
+  for playerEntity in playerEntities:
+    var player = newPlayer(playerEntity)
+    let pos = player.getPos()
+    var playerSnapshot = initServerMsg_PlayerSnapshot(
+      id = playerEntity,
+      posX = pos.x,
+      posY = pos.y
+    )
+    playerSnapshots.add(playerSnapshot)
 
   var gameSnapshot = initServerMsg_GameSnapshot(
     tick = global.tick,
-    playerSnapshots = @[playerSnapshot]
+    playerSnapshots = playerSnapshots
   )
 
   var msg = initServerMsg(
@@ -261,7 +275,7 @@ proc recv*(server: Server) =
         if clientMsg.has(gameInputs):
           let gameInputs = clientMsg.private_gameInputs
           let client = server.clients[clientKey]
-          var player = toPlayer(client.player.get())
+          var player = newPlayer(client.player.get())
           for gameInput in gameInputs:
             let offset =
               case gameInput

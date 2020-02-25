@@ -11,24 +11,24 @@ import
   clean_game/ecs/registry,
   clean_game/client/entities / [player],
   clean_game/ecs/systems / [renderer],
-  clean_game/net/client as net_client
+  clean_game/net/client as net_client,
+  clean_game/net/protocol/client_msg
 
 type Game = ref object
-  reg: Registry
+  ## Nothing here
 
 proc newGame(): Game =
   new result
-  result.reg = newRegistry()
+  global.reg = newRegistry()
 
 proc render(game: Game, renderer: RendererPtr) =
   renderSprites(
     renderer,
-    game.reg
+    global.reg
   )
 
 type Client = ref object
   window: WindowPtr
-  renderer: RendererPtr
   inputs: set[Input]
   game: Game
   netClient*: net_client.Client
@@ -44,13 +44,13 @@ proc newClient(): Client =
     SDL_WINDOW_SHOWN
   )
 
-  result.renderer = createRenderer(
+  global.renderer = createRenderer(
     result.window,
     -1,
     Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture
   )
 
-  discard result.renderer.setDrawColor(100, 100, 200, 255)
+  discard global.renderer.setDrawColor(100, 100, 200, 255)
 
   global.keyboard = newKeyboard()
   global.keyboard.addInput(
@@ -82,7 +82,7 @@ proc newClient(): Client =
 proc destroy(client: Client) =
   client.netClient.close()
   client.window.destroy()
-  client.renderer.destroy()
+  global.renderer.destroy()
 
 proc update(client: Client) =
   var event = defaultEvent
@@ -100,10 +100,27 @@ proc update(client: Client) =
     else:
       discard
 
+proc processInputs*(client: Client) =
+  var netClient = client.netClient
+  var gameInputs = newSeq[GameInput]()
+  for input in client.inputs:
+    case input
+    of Input.RequestInfo:
+      netClient.requestInfo()
+    of Input.Connect:
+      netClient.connect()
+    of Input.Disconnect:
+      netClient.disconnect()
+    of Input.Left, Input.Right, Input.Up, Input.Down:
+      gameInputs.add(input.toGameInput())
+    else: discard
+
+  netClient.sendGameInputs(gameInputs)
+
 proc render(client: Client) =
-  client.renderer.clear()
-  client.game.render(client.renderer)
-  client.renderer.present()
+  global.renderer.clear()
+  client.game.render(global.renderer)
+  global.renderer.present()
 
 proc main() =
   initLogging("client")
@@ -120,9 +137,8 @@ proc main() =
   var client = newClient()
   defer: client.destroy()
 
-  let reg = client.game.reg
-  var player = newPlayer(client.game.reg, client.renderer)
-  player.spawn(reg)
+  # var player = newPlayer(global.reg, global.renderer)
+  # player.spawn(global.reg)
 
   while Input.Quit notin client.inputs:
     let tickStart = times.getTime()
@@ -130,7 +146,7 @@ proc main() =
     client.netClient.recv()
     client.update()
     global.keyboard.processKeys(client.inputs)
-    processInputs(client.inputs, client.netClient)
+    client.processInputs()
     client.netClient.sendMsgs()
     client.render()
 
